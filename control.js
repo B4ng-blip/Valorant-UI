@@ -4,8 +4,27 @@
 
 (function(){
   function loadSaved(){try{const s=localStorage.getItem("valo_overlay_web");return s?JSON.parse(s):null;}catch(e){return null;}}
-  let STATE = loadSaved() || JSON.parse(JSON.stringify(DEFAULT_STATE));
-  if(!STATE.ui) STATE.ui={showRails:true};
+  // make any saved/partial state safe: guarantee match, both teams, 5 players each, cam, ui
+  function normalize(s){
+    const D=DEFAULT_STATE;
+    s=s&&typeof s==="object"?s:{};
+    s.match=Object.assign(JSON.parse(JSON.stringify(D.match)),s.match||{});
+    s.teams=s.teams||{};
+    ["A","B"].forEach(k=>{ s.teams[k]=Object.assign(JSON.parse(JSON.stringify(D.teams[k])),s.teams[k]||{}); });
+    s.players=s.players||{};
+    ["A","B"].forEach(k=>{
+      if(!Array.isArray(s.players[k])) s.players[k]=[];
+      for(let i=0;i<5;i++){
+        s.players[k][i]=Object.assign(JSON.parse(JSON.stringify(D.players[k][i])), s.players[k][i]||{});
+        if(!s.players[k][i].abilities) s.players[k][i].abilities={c:true,q:true,e:true};
+      }
+      s.players[k]=s.players[k].slice(0,5);
+    });
+    s.cam=Object.assign(JSON.parse(JSON.stringify(D.cam)),s.cam||{});
+    s.ui=Object.assign({showRails:true},s.ui||{});
+    return s;
+  }
+  let STATE = normalize(loadSaved() || JSON.parse(JSON.stringify(DEFAULT_STATE)));
   const $ = s=>document.querySelector(s);
   const $$ = s=>document.querySelectorAll(s);
   const el=(t,c,h)=>{const n=document.createElement(t);if(c)n.className=c;if(h!=null)n.innerHTML=h;return n;};
@@ -217,7 +236,7 @@
   function playersCard(){
     const c=el("div","card players");c.innerHTML=`<h2>선수 명단 <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8696a5">— 옵저버가 있을 때 사용 (솔로면 생략 가능)</span></h2>`;
     ["A","B"].forEach(k=>{
-      const d=el("details");if(k==="A")d.open=true;
+      const d=el("details");d.open=true;          // both teams expanded
       d.append(el("summary",null,`팀 ${k} — ${STATE.teams[k].tricode} 선수 5명`));
       const t=el("div","pteam");
       for(let i=0;i<5;i++) t.append(playerRow(k,i));
